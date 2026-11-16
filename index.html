@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jadwal Harian</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --teks: #1c1c1e;
+      --garis: #d9d9de;
+      --redup: #6e6e73;
+      --sekarang: #e5322d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e;
+        --teks: #f2f2f7;
+        --garis: #3a3a3c;
+        --redup: #98989f;
+      }
+    }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: var(--bg); color: var(--teks);
+      max-width: 900px; margin: 20px auto; padding: 0 16px;
+    }
+    h1, h2 { margin-bottom: 4px; }
+    #tanggal { margin-top: 0; color: var(--redup); }
+
+    /* ---------- Timeline ---------- */
+    .wrap { overflow-x: auto; border: 1px solid var(--garis); border-radius: 8px; }
+    .tl { position: relative; min-width: 1000px; }
+    .rowtl { display: flex; border-bottom: 1px solid var(--garis); }
+    .rowtl:last-child { border-bottom: none; }
+    .label {
+      width: 110px; flex-shrink: 0; padding: 8px;
+      position: sticky; left: 0; z-index: 3;
+      background: var(--bg); border-right: 1px solid var(--garis);
+      font-weight: 600; font-size: 14px;
+      display: flex; align-items: center;
+    }
+    .track {
+      flex: 1; position: relative; height: 44px;
+      background-image: linear-gradient(to right, var(--garis) 1px, transparent 1px);
+      background-size: calc(100% / 24) 100%;
+    }
+    .header .track { height: 28px; display: flex; background-image: none; }
+    .header .track span {
+      flex: 1; font-size: 12px; color: var(--redup);
+      padding-left: 3px; box-sizing: border-box;
+      border-left: 1px solid var(--garis);
+    }
+    .bar {
+      position: absolute; top: 6px; bottom: 6px;
+      border-radius: 6px; color: #fff; font-size: 12px;
+      padding: 0 6px; display: flex; align-items: center;
+      overflow: hidden; white-space: nowrap; box-sizing: border-box;
+    }
+    .overlay {
+      position: absolute; top: 0; bottom: 0; left: 110px; right: 0;
+      pointer-events: none; z-index: 2;
+    }
+    #garisSekarang {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: var(--sekarang);
+    }
+    #kosong { padding: 16px; color: var(--redup); }
+
+    /* ---------- Form ---------- */
+    details { margin-top: 28px; }
+    summary { font-size: 18px; font-weight: 600; cursor: pointer; }
+    label.f { display: block; margin-top: 12px; font-weight: 600; }
+    input[type="text"], input[type="time"], input[type="date"] {
+      width: 100%; padding: 8px; font-size: 16px; box-sizing: border-box;
+    }
+    .hari label { display: inline-block; margin-right: 10px; font-weight: normal; }
+    .baris2 { display: flex; gap: 12px; }
+    .baris2 > div { flex: 1; }
+    button { margin-top: 16px; padding: 10px 16px; font-size: 16px; cursor: pointer; }
+    .item { border: 1px solid var(--garis); border-radius: 8px; padding: 10px; margin-top: 10px; }
+    .item button { margin-top: 6px; padding: 4px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Jadwal Hari Ini</h1>
+  <p id="tanggal"></p>
+
+  <div class="wrap">
+    <div class="tl" id="timeline"></div>
+  </div>
+
+  <details>
+    <summary>Kelola jadwal</summary>
+
+    <h2 style="margin-top:16px">Tambah kegiatan</h2>
+    <div id="form">
+      <label class="f" for="nama">Nama kegiatan</label>
+      <input type="text" id="nama" placeholder="Contoh: Kerja">
+
+      <label class="f">Hari berulang</label>
+      <div class="hari" id="hari">
+        <label><input type="checkbox" value="1"> Sen</label>
+        <label><input type="checkbox" value="2"> Sel</label>
+        <label><input type="checkbox" value="3"> Rab</label>
+        <label><input type="checkbox" value="4"> Kam</label>
+        <label><input type="checkbox" value="5"> Jum</label>
+        <label><input type="checkbox" value="6"> Sab</label>
+        <label><input type="checkbox" value="0"> Min</label>
+      </div>
+
+      <div class="baris2">
+        <div>
+          <label class="f" for="mulai">Jam mulai</label>
+          <input type="time" id="mulai" value="08:00">
+        </div>
+        <div>
+          <label class="f" for="selesai">Jam selesai</label>
+          <input type="time" id="selesai" value="16:00">
+        </div>
+      </div>
+
+      <div class="baris2">
+        <div>
+          <label class="f" for="tglMulai">Berlaku dari</label>
+          <input type="date" id="tglMulai">
+        </div>
+        <div>
+          <label class="f" for="tglAkhir">Sampai</label>
+          <input type="date" id="tglAkhir">
+        </div>
+      </div>
+
+      <button id="simpan">Simpan kegiatan</button>
+    </div>
+
+    <h2 style="margin-top:32px">Kegiatan tersimpan</h2>
+        <div id="daftar"></div>
+
+    <h2 style="margin-top:32px">Pindahkan jadwal (Export / Import)</h2>
+    <button id="export">Salin kode jadwal</button>
+    <label class="f" for="kode">Kode jadwal</label>
+    <textarea id="kode" rows="5" placeholder="Tempel kode jadwal di sini untuk import"
+      style="width:100%; font-size:14px; box-sizing:border-box"></textarea>
+    <button id="import">Import dari kode</button>
+  </details>
+
+  <script>
+    const NAMA_HARI = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const KUNCI = "jadwal-aturan";
+
+    // ---------- Penyimpanan ----------
+    function ambilData() {
+      try {
+        return JSON.parse(localStorage.getItem(KUNCI)) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+    function simpanData(data) {
+      localStorage.setItem(KUNCI, JSON.stringify(data));
+    }
+
+    // ---------- Utilitas ----------
+    function formatTanggalInput(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const t = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${t}`;
+    }
+    function keMenit(jam) {
+      const [j, m] = jam.split(":").map(Number);
+      return j * 60 + m;
+    }
+    function warnaDari(teks) {
+      let h = 0;
+      for (const c of teks) h = (h * 31 + c.charCodeAt(0)) % 360;
+      return `hsl(${h}, 55%, 42%)`;
+    }
+
+    // ---------- Logika jadwal ----------
+    function berlaku(aturan, tanggal) {
+      const s = formatTanggalInput(tanggal);
+      return (
+        aturan.hari.includes(tanggal.getDay()) &&
+        s >= aturan.tglMulai &&
+        s <= aturan.tglAkhir
+      );
+    }
+
+    // Mengembalikan daftar potongan [menitMulai, menitSelesai] untuk hari ini
+    function potonganHariIni(aturan, sekarang) {
+      const kemarin = new Date(sekarang);
+      kemarin.setDate(kemarin.getDate() - 1);
+
+      const s = keMenit(aturan.mulai);
+      let e = keMenit(aturan.selesai);
+      if (e === 0) e = 1440; // 00:00 = tengah malam (akhir hari)
+
+      const hasil = [];
+      if (s < e) {
+        if (berlaku(aturan, sekarang)) hasil.push([s, e]);
+      } else {
+        // melewati tengah malam, contoh 22:00 - 02:00
+        if (berlaku(aturan, sekarang)) hasil.push([s, 1440]);
+        if (berlaku(aturan, kemarin)) hasil.push([0, e]);
+      }
+      return hasil;
+    }
+
+    // ---------- Tampilan timeline ----------
+    let pertamaKali = true;
+
+    function gambarTimeline() {
+      const sekarang = new Date();
+      document.getElementById("tanggal").textContent =
+        sekarang.toLocaleDateString("id-ID", {
+          weekday: "long", day: "numeric", month: "long", year: "numeric"
+        });
+
+      const kotak = document.getElementById("timeline");
+      kotak.innerHTML = "";
+
+      // Baris jam (header)
+      const header = document.createElement("div");
+      header.className = "rowtl header";
+      const labelKosong = document.createElement("div");
+      labelKosong.className = "label";
+      const trackJam = document.createElement("div");
+      trackJam.className = "track";
+      for (let j = 0; j < 24; j++) {
+        const sp = document.createElement("span");
+        sp.textContent = String(j).padStart(2, "0");
+        trackJam.appendChild(sp);
+      }
+      header.append(labelKosong, trackJam);
+      kotak.appendChild(header);
+
+      // Baris kegiatan
+      const baris = [];
+      ambilData().forEach((a) => {
+        const pot = potonganHariIni(a, sekarang);
+        if (pot.length > 0) baris.push({ aturan: a, pot });
+      });
+      baris.sort((x, y) => x.pot[0][0] - y.pot[0][0]);
+
+      baris.forEach(({ aturan, pot }) => {
+        const row = document.createElement("div");
+        row.className = "rowtl";
+
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = aturan.nama;
+
+        const track = document.createElement("div");
+        track.className = "track";
+
+        pot.forEach(([s, e]) => {
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          bar.style.left = (s / 1440) * 100 + "%";
+          bar.style.width = ((e - s) / 1440) * 100 + "%";
+          bar.style.background = warnaDari(aturan.nama);
+          bar.textContent = `${aturan.mulai}-${aturan.selesai}`;
+          track.appendChild(bar);
+        });
+
+        row.append(label, track);
+        kotak.appendChild(row);
+      });
+
+      if (baris.length === 0) {
+        const kosong = document.createElement("div");
+        kosong.id = "kosong";
+        kosong.textContent = "Tidak ada kegiatan hari ini.";
+        kotak.appendChild(kosong);
+      }
+
+      // Garis jam sekarang
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      const garis = document.createElement("div");
+      garis.id = "garisSekarang";
+      const menitSekarang = sekarang.getHours() * 60 + sekarang.getMinutes();
+      garis.style.left = (menitSekarang / 1440) * 100 + "%";
+      overlay.appendChild(garis);
+      kotak.appendChild(overlay);
+
+      // Saat pertama dibuka, geser tampilan supaya jam sekarang di tengah
+      if (pertamaKali) {
+        pertamaKali = false;
+        const wrap = kotak.parentElement;
+        const lebarTrack = kotak.clientWidth - 110;
+        const posisi = (menitSekarang / 1440) * lebarTrack + 110;
+        wrap.scrollLeft = Math.max(0, posisi - wrap.clientWidth / 2);
+      }
+    }
+
+    // Perbarui otomatis tiap 30 detik (ganti hari + geser garis jam)
+    setInterval(gambarTimeline, 30000);
+    // Perbarui juga saat tab/app dibuka kembali
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) gambarTimeline();
+    });
+
+    // ---------- Form: tanggal default ----------
+    const hariIni = new Date();
+    const akhirBulan = new Date();
+    akhirBulan.setDate(akhirBulan.getDate() + 30);
+    document.getElementById("tglMulai").value = formatTanggalInput(hariIni);
+    document.getElementById("tglAkhir").value = formatTanggalInput(akhirBulan);
+
+    // ---------- Daftar kegiatan tersimpan ----------
+    function tampilkanDaftar() {
+      const data = ambilData();
+      const kotak = document.getElementById("daftar");
+      kotak.innerHTML = "";
+
+      if (data.length === 0) {
+        kotak.textContent = "Belum ada kegiatan.";
+        return;
+      }
+
+      data.forEach((a) => {
+        const div = document.createElement("div");
+        div.className = "item";
+
+        const hariTeks = a.hari
+          .slice()
+          .sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7))
+          .map((h) => NAMA_HARI[h])
+          .join(", ");
+
+        const judul = document.createElement("strong");
+        judul.textContent = a.nama;
+
+        const info = document.createElement("div");
+        info.textContent = `${hariTeks} | ${a.mulai} - ${a.selesai}`;
+
+        const periode = document.createElement("div");
+        periode.textContent = `Berlaku: ${a.tglMulai} s/d ${a.tglAkhir}`;
+
+        const hapus = document.createElement("button");
+        hapus.textContent = "Hapus";
+        hapus.addEventListener("click", () => {
+          simpanData(ambilData().filter((x) => x.id !== a.id));
+          tampilkanDaftar();
+          gambarTimeline();
+        });
+
+        div.append(judul, info, periode, hapus);
+        kotak.appendChild(div);
+      });
+    }
+
+    // ---------- Tombol simpan ----------
+    document.getElementById("simpan").addEventListener("click", () => {
+      const nama = document.getElementById("nama").value.trim();
+      const mulai = document.getElementById("mulai").value;
+      const selesai = document.getElementById("selesai").value;
+      const tglMulai = document.getElementById("tglMulai").value;
+      const tglAkhir = document.getElementById("tglAkhir").value;
+      const hari = Array.from(
+        document.querySelectorAll("#hari input:checked")
+      ).map((c) => Number(c.value));
+
+      if (!nama) return alert("Nama kegiatan belum diisi.");
+      if (hari.length === 0) return alert("Pilih minimal satu hari.");
+      if (!mulai || !selesai) return alert("Jam mulai dan selesai harus diisi.");
+      if (mulai === selesai) return alert("Jam mulai dan selesai tidak boleh sama.");
+      if (!tglMulai || !tglAkhir) return alert("Tanggal berlaku harus diisi.");
+      if (tglMulai > tglAkhir) return alert("Tanggal 'dari' harus sebelum 'sampai'.");
+
+      const data = ambilData();
+      data.push({ id: Date.now(), nama, hari, mulai, selesai, tglMulai, tglAkhir });
+      simpanData(data);
+
+      document.getElementById("nama").value = "";
+      document.querySelectorAll("#hari input").forEach((c) => (c.checked = false));
+      tampilkanDaftar();
+      gambarTimeline();
+    });
+    // ---------- Export / Import ----------
+    document.getElementById("export").addEventListener("click", async () => {
+      const teks = JSON.stringify(ambilData());
+      const kotak = document.getElementById("kode");
+      kotak.value = teks;
+      try {
+        await navigator.clipboard.writeText(teks);
+        alert("Kode jadwal sudah disalin.");
+      } catch (e) {
+        kotak.select();
+        alert("Salin otomatis gagal. Kode sudah ada di kotak, salin manual.");
+      }
+    });
+
+    document.getElementById("import").addEventListener("click", () => {
+      let data;
+      try {
+        data = JSON.parse(document.getElementById("kode").value);
+      } catch (e) {
+        return alert("Kode tidak valid. Pastikan disalin lengkap.");
+      }
+
+      const valid =
+        Array.isArray(data) &&
+        data.every(
+          (a) =>
+            a && typeof a.nama === "string" && Array.isArray(a.hari) &&
+            a.mulai && a.selesai && a.tglMulai && a.tglAkhir
+        );
+      if (!valid) return alert("Isi kode tidak sesuai format jadwal.");
+
+      if (!confirm(`Import ${data.length} kegiatan? Jadwal yang ada sekarang akan DIGANTI.`)) return;
+
+      data.forEach((a, i) => (a.id = Date.now() + i));
+      simpanData(data);
+      document.getElementById("kode").value = "";
+      tampilkanDaftar();
+      gambarTimeline();
+      alert("Import berhasil.");
+    });
+    // ---------- Mulai ----------
+    tampilkanDaftar();
+    gambarTimeline();
+  </script>
+</body>
+</html>
