@@ -99,12 +99,19 @@
       display: inline-block; width: 12px; height: 12px;
       border-radius: 50%; margin-right: 6px;
     }
+        #legenda { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pil {
+      padding: 5px 14px; border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+      color: #fff; white-space: nowrap;
+    }
   </style>
 </head>
 <body>
   <h1>Jadwal Hari Ini</h1>
   <p id="tanggal"></p>
 
+    <div id="legenda"></div>
   <div class="wrap">
     <div class="tl" id="timeline"></div>
   </div>
@@ -468,6 +475,26 @@
         document.getElementById("warna").value = w;
       });
       wadahPreset.appendChild(b);
+    });
+        // ---------- Label keterangan warna ----------
+    const LEGENDA = [
+      { teks: "Produksi",       warna: "#d93636" },
+      { teks: "Marketing",      warna: "#2e9e5b" },
+      { teks: "Admin OP",       warna: "#f0a020", hurufGelap: true },
+      { teks: "Kadiv Marketing", warna: "#2f6fed" },
+      { teks: "Kadiv Produksi", warna: "#8a4fd6" },
+      { teks: "Kadiv OP",       warna: "#17a2b8" },
+      { teks: "Security",       warna: "#e0559a" },
+      { teks: "OB",             warna: "#6b7280" }
+    ];
+    const kotakLegenda = document.getElementById("legenda");
+    LEGENDA.forEach((l) => {
+      const pil = document.createElement("span");
+      pil.className = "pil";
+      pil.textContent = l.teks;
+      pil.style.background = l.warna;
+      if (l.hurufGelap) pil.style.color = "#1c1c1e";
+      kotakLegenda.appendChild(pil);
     });
     // ---------- Mulai ----------
     tampilkanDaftar();
